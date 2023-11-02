@@ -86,7 +86,7 @@ def generate_eval(text, N, chunk):
     n = len(text)
     starting_indices = [random.randint(0, n-chunk) for _ in range(N)]
     sub_sequences = [text[i:i+chunk] for i in starting_indices]
-    chain = QAGenerationChain.from_llm(ChatOpenAI(temperature=0))
+    chain = QAGenerationChain.from_llm(ChatOpenAI(temperature=0.4))
     eval_set = []
     for i, b in enumerate(sub_sequences):
         try:
@@ -109,11 +109,11 @@ def main():
         bottom: 0;
         left: 30%;
         right: 0;
-        width: 50%;
+        width: 30%;
         padding: 0px 0px;
         text-align: center;
     ">
-        <p>Made by <a href='https://twitter.com/mehmet_ba7'>Mehmet Balioglu</a></p>
+        <p>Made by <a href='https://linkedin.com/in/thomasleigh'>Thomas Leigh</a></p>
     </div>
     """
 
@@ -168,7 +168,7 @@ def main():
         """,
         unsafe_allow_html=True,
     )
-    st.sidebar.image("img/logo1.png")
+#    st.sidebar.image("img/logo1.png")
 
 
    
@@ -176,7 +176,7 @@ def main():
     st.write(
     f"""
     <div style="display: flex; align-items: center; margin-left: 0;">
-        <h1 style="display: inline-block;">PDF Analyzer</h1>
+        <h1 style="display: inline-block;">Hettie's Research Assistant</h1>
         <sup style="margin-left:5px;font-size:small; color: green;">beta</sup>
     </div>
     """,
@@ -188,31 +188,18 @@ def main():
 
     
     
-    st.sidebar.title("Menu")
     
-    embedding_option = st.sidebar.radio(
-        "Choose Embeddings", ["OpenAI Embeddings", "HuggingFace Embeddings(slower)"])
+#    embedding_option = "OpenAIEmbeddings"
 
-    
-    retriever_type = st.sidebar.selectbox(
-        "Choose Retriever", ["SIMILARITY SEARCH", "SUPPORT VECTOR MACHINES"])
+    embeddings = OpenAIEmbeddings()
+
+    retriever_type = "SIMILARITY SEARCH"
 
     # Use RecursiveCharacterTextSplitter as the default and only text splitter
     splitter_type = "RecursiveCharacterTextSplitter"
 
     if 'openai_api_key' not in st.session_state:
-        openai_api_key = st.text_input(
-            'Please enter your OpenAI API key or [get one here](https://platform.openai.com/account/api-keys)', value="", placeholder="Enter the OpenAI API key which begins with sk-")
-        if openai_api_key:
-            st.session_state.openai_api_key = openai_api_key
-            os.environ["OPENAI_API_KEY"] = openai_api_key
-        else:
-            #warning_text = 'Please enter your OpenAI API key. Get yours from here: [link](https://platform.openai.com/account/api-keys)'
-            #warning_html = f'<span>{warning_text}</span>'
-            #st.markdown(warning_html, unsafe_allow_html=True)
-            return
-    else:
-        os.environ["OPENAI_API_KEY"] = st.session_state.openai_api_key
+        st.session_state.openai_api_key = st.secrets["OPENAI_API_KEY"]
 
     uploaded_files = st.file_uploader("Upload a PDF or TXT Document", type=[
                                       "pdf", "txt"], accept_multiple_files=True)
@@ -230,7 +217,7 @@ def main():
 
         # Split the document into chunks
         splits = split_texts(loaded_text, chunk_size=1000,
-                             overlap=0, split_method=splitter_type)
+                             overlap=200, split_method=splitter_type)
 
         # Display the number of text chunks
         num_chunks = len(splits)
@@ -238,11 +225,11 @@ def main():
 
         # Embed using OpenAI embeddings
             # Embed using OpenAI embeddings or HuggingFace embeddings
-        if embedding_option == "OpenAI Embeddings":
-            embeddings = OpenAIEmbeddings()
-        elif embedding_option == "HuggingFace Embeddings(slower)":
+#        if embedding_option == "OpenAI Embeddings":
+        embeddings = OpenAIEmbeddings()
+#        elif embedding_option == "HuggingFace Embeddings(slower)":
             # Replace "bert-base-uncased" with the desired HuggingFace model
-            embeddings = HuggingFaceEmbeddings()
+#            embeddings = HuggingFaceEmbeddings()
 
         retriever = create_retriever(embeddings, splits, retriever_type)
 
@@ -252,7 +239,7 @@ def main():
         callback_manager = CallbackManager([callback_handler])
 
         chat_openai = ChatOpenAI(
-            streaming=True, callback_manager=callback_manager, verbose=True, temperature=0)
+            streaming=True, callback_manager=callback_manager, verbose=True, temperature=0.4)
         qa = RetrievalQA.from_chain_type(llm=chat_openai, retriever=retriever, chain_type="stuff", verbose=True)
 
         # Check if there are no generated question-answer pairs in the session state
@@ -263,26 +250,40 @@ def main():
                 loaded_text, num_eval_questions, 3000)
 
        # Display the question-answer pairs in the sidebar with smaller text
-        for i, qa_pair in enumerate(st.session_state.eval_set):
-            st.sidebar.markdown(
-                f"""
-                <div class="css-card">
-                <span class="card-tag">Question {i + 1}</span>
-                    <p style="font-size: 12px;">{qa_pair['question']}</p>
-                    <p style="font-size: 12px;">{qa_pair['answer']}</p>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-            # <h4 style="font-size: 14px;">Question {i + 1}:</h4>
-            # <h4 style="font-size: 14px;">Answer {i + 1}:</h4>
-        st.write("Ready to answer questions.")
+#        for i, qa_pair in enumerate(st.session_state.eval_set):
+#            st.sidebar.markdown(qa_pair['question'])
 
+        st.divider()
+        st.header("Ready to answer questions.")
         # Question and answering
         user_question = st.text_input("Enter your question:")
         if user_question:
             answer = qa.run(user_question)
             st.write("Answer:", answer)
+
+        questions_list = [qa_pair['question'] for i, qa_pair in enumerate(st.session_state.eval_set)]
+        answers_list = [qa_pair['answer'] for i, qa_pair in enumerate(st.session_state.eval_set)]
+#        sample_question = st.selectbox(
+#            ' ',
+#            questions_list,
+#            index=None,
+#            placeholder="Select sample question...")
+        # Store the initial value of widgets in session state
+        if "visibility" not in st.session_state:
+            st.session_state.visibility = "visible"
+            st.session_state.disabled = False
+
+        sample_question = st.selectbox(
+        "How would you like to be contacted?",
+            questions_list,
+        label_visibility=st.session_state.visibility,
+        disabled=st.session_state.disabled,
+    )
+
+        if sample_question:
+            st.header(sample_question)
+            index = questions_list.index(sample_question)
+            st.write(answers_list[index])
 
 
 if __name__ == "__main__":
